@@ -1,0 +1,94 @@
+from pygame import *
+from math import hypot
+from random import randint
+import socket
+import pickle
+import threading
+
+client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+client.connect(("127.0.0.1",1488))
+
+other_players_balls = {}
+my_id = None
+
+class Ball:
+    def __init__(self, x, y, radius, color, speed):
+        self.speed = speed
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.color = color
+
+    def move(self):
+        keys = key.get_pressed()
+        if keys[K_w]:
+            self.y -= self.speed
+        if keys[K_s]:
+            self.y += self.speed
+        if keys[K_a]:
+            self.x -= self.speed
+        if keys[K_d]:
+            self.x += self.speed
+
+    def reset(self, center_x, center_y, scale):
+        sx = int((self.x - center_x) * scale + WINDOW_SIZE[0] // 2)
+        sy = int((self.y - center_y) * scale + WINDOW_SIZE[1] // 2)
+        draw.circle(window, self.color, (sx, sy), self.radius)
+
+    def collidecircle(self, ball2):
+        distance = hypot(self.x - ball2.x, self.y - ball2.y)
+        return distance < (self.radius + ball2.radius)
+
+    def draw_center(self, scale):
+        draw.circle(window, self.color,(WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2), int(self.radius * scale))
+
+
+init()
+
+WINDOW_SIZE = 500, 500
+
+window = display.set_mode(WINDOW_SIZE)
+display.set_caption("ВАША НАЗВА")
+clock = time.Clock()
+
+bg = image.load("img.jfif")
+bg = transform.scale(bg, WINDOW_SIZE)
+
+player = Ball(300, 300, 25, (255, 100, 255), 5)
+
+balls = [
+    Ball(
+        randint(-2000, 2000),
+        randint(-2000, 2000),
+        10,
+        (randint(0,255), randint(0, 255), randint(0, 255)),
+         0
+    )
+    for _ in range(300)
+
+
+]
+
+while True:
+    for e in event.get():
+        if e.type == QUIT:
+            quit()
+
+    scale = max(0.3, min(50 / player.radius, 1.5))
+    window.blit(bg, (0, 0))
+    player.move()
+    player.draw_center(scale)
+
+    to_remove = []
+    for ball in balls:
+        if player.collidecircle(ball):
+            to_remove.append(ball)
+            player.radius += int(ball.radius * 0.2)
+        else:
+            ball.reset(player.x, player.y, scale)
+
+    for ball in to_remove:
+        balls.remove(ball)
+
+    display.update()
+    clock.tick(60)
